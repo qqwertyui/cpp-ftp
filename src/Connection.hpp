@@ -18,7 +18,6 @@ public:
   virtual void onError(int errorNumber) = 0;
   virtual void onData(const ByteSpan &data) = 0;
 
-protected:
   const ConnectionInfo info;
 };
 } // namespace ftp

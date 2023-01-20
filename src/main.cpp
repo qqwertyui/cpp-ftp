@@ -1,16 +1,12 @@
 #include <arpa/inet.h>
-#include <array>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <errno.h>
-#include <netinet/in.h>
-#include <string>
 #include <sys/socket.h>
 #include <unistd.h>
 
-#include "ControlConnection.hpp"
-#include "Span.hpp"
+#include "ClientManager.hpp"
 
 inline constexpr uint16_t SERVER_PORT = 1337;
 inline constexpr uint32_t BACKLOG_SIZE = 10;
@@ -48,37 +44,6 @@ int main(int argc, char **argv) {
   }
 
   printf("Listening for incoming connections...\n");
-  while (true) {
-    struct sockaddr_in clientSockAddr;
-    socklen_t clientSocklen = sizeof(sockaddr_in);
-    int controlClientFd = accept(
-        serverSocketFd, (struct sockaddr *)&clientSockAddr, &clientSocklen);
-    ftp::ConnectionInfo connInfo{controlClientFd, clientSockAddr};
-    ftp::ControlConnection conn{connInfo};
-    if (conn.isConnected()) {
-      conn.onConnect();
-    } else {
-      conn.onError(errno);
-      continue;
-    }
-    std::array<unsigned char, 1024> buffer;
-    while (true) {
-      ssize_t receivedBytes =
-          recv(connInfo.fd, buffer.data(), buffer.size(), 0);
-      if (receivedBytes == -1) {
-        conn.onError(errno);
-        close(connInfo.fd);
-        conn.onDisconnect();
-        break;
-      } else if (receivedBytes == 0) {
-        close(connInfo.fd);
-        conn.onDisconnect();
-        break;
-      }
-      conn.onData(
-          ftp::ByteSpan{buffer.data(), static_cast<uint32_t>(receivedBytes)});
-    }
-  }
-  close(serverSocketFd);
+  ftp::ClientManager{}.handleForever(serverSocketFd);
   return 0;
 }
